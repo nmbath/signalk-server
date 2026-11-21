@@ -133,6 +133,10 @@ export class LocalBLEProvider {
   private connectQueue = new ConnectionQueue()
   private deviceListeners: Map<string, () => void> = new Map() // MAC → cleanup
   private lastRssi: Map<string, number> = new Map() // MAC → last known RSSI
+  // MAC → last known advertised name. BlueZ reports Name once, in the initial
+  // property read, and afterwards only when it changes, so without this every
+  // later advertisement would go out without the name.
+  private lastName: Map<string, string> = new Map()
   private watcherTimer?: ReturnType<typeof setInterval>
   private rawConnections = 0
   // Whether discovery should be running; see pauseDiscovery() for when it is
@@ -203,6 +207,7 @@ export class LocalBLEProvider {
     }
     this.deviceListeners.clear()
     this.lastRssi.clear()
+    this.lastName.clear()
     if (this.destroy) {
       try {
         this.destroy()
@@ -295,6 +300,7 @@ export class LocalBLEProvider {
     }
     this.deviceListeners.clear()
     this.lastRssi.clear()
+    this.lastName.clear()
     debug('Discovery stopped')
   }
 
@@ -406,6 +412,7 @@ export class LocalBLEProvider {
             release()
             this.deviceListeners.delete(mac)
             this.lastRssi.delete(mac)
+            this.lastName.delete(mac)
           }
         }
         for (const mac of macs) {
@@ -474,15 +481,18 @@ export class LocalBLEProvider {
     }
   }
 
+  private rememberName(mac: string, name: unknown) {
+    if (typeof name === 'string' && name.length > 0) {
+      this.lastName.set(mac, name)
+    }
+  }
+
   private async emitDeviceAdvertisement(
     device: any,
     mac: string,
     changedProps?: any
   ) {
-    if (this.advCallbacks.size === 0) return
-
     try {
-      let name: string | undefined
       let rssi = -127
       let manufacturerData: Record<number, string> | undefined
       let serviceData: Record<string, string> | undefined
@@ -490,8 +500,9 @@ export class LocalBLEProvider {
 
       if (changedProps) {
         if (changedProps.Name) {
-          name = this.unwrapVariant(changedProps.Name)
+          this.rememberName(mac, this.unwrapVariant(changedProps.Name))
         }
+        if (this.advCallbacks.size === 0) return
         if (changedProps.RSSI !== undefined) {
           rssi = this.unwrapVariant(changedProps.RSSI)
           this.lastRssi.set(mac, rssi)
@@ -512,10 +523,12 @@ export class LocalBLEProvider {
           serviceUuids = this.unwrapVariant(changedProps.UUIDs)
         }
       } else {
-        // Initial full read
+        // Initial full read. It runs even before anyone subscribes, because it
+        // is the only read of Name: BlueZ sends Name again only if it changes.
         try {
           const allProps = await device._propsProxy.GetAll('org.bluez.Device1')
-          name = this.unwrapVariant(allProps?.Name)
+          this.rememberName(mac, this.unwrapVariant(allProps?.Name))
+          if (this.advCallbacks.size === 0) return
           rssi = this.unwrapVariant(allProps?.RSSI) ?? -127
           if (rssi !== -127) this.lastRssi.set(mac, rssi)
           if (allProps?.ManufacturerData) {
@@ -540,7 +553,7 @@ export class LocalBLEProvider {
 
       const adv: BLEAdvertisement = {
         mac: mac.toUpperCase(),
-        name,
+        name: this.lastName.get(mac),
         rssi,
         manufacturerData,
         serviceData,
