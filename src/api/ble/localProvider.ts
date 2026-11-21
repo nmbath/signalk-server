@@ -526,7 +526,9 @@ export class LocalBLEProvider {
         // Initial full read. It runs even before anyone subscribes, because it
         // is the only read of Name: BlueZ sends Name again only if it changes.
         try {
-          const allProps = await device._propsProxy.GetAll('org.bluez.Device1')
+          // node-ble keeps the Properties proxy on device.helper, not on the
+          // device; props() reads them all and unwraps each Variant
+          const allProps = await device.helper.props()
           this.rememberName(mac, this.unwrapVariant(allProps?.Name))
           if (this.advCallbacks.size === 0) return
           rssi = this.unwrapVariant(allProps?.RSSI) ?? -127
