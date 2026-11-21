@@ -148,6 +148,12 @@ export const BLEDeviceInfoSchema = Type.Object(
       description: 'Device MAC address (uppercase, colon-separated)'
     }),
     name: Type.Optional(Type.String({ description: 'Advertised local name' })),
+    vendor: Type.Optional(
+      Type.String({
+        description:
+          'Manufacturer named from the Bluetooth SIG company ID of the manufacturer data'
+      })
+    ),
     rssi: Type.Number({
       description: 'Best (strongest) RSSI across all providers'
     }),

@@ -379,6 +379,7 @@ export default function BLEManager() {
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Vendor</th>
                   <th>MAC Address</th>
                   <th>RSSI</th>
                   <th>Last Seen</th>
@@ -392,7 +393,8 @@ export default function BLEManager() {
                   .sort((a, b) => (b.rssi ?? -999) - (a.rssi ?? -999))
                   .map((device) => (
                     <tr key={device.mac}>
-                      <td>{device.name || <em>Unknown</em>}</td>
+                      <td>{device.name || '-'}</td>
+                      <td>{device.vendor || '-'}</td>
                       <td>
                         <code>{device.mac}</code>
                       </td>

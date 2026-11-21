@@ -53,6 +53,7 @@ describe('BLE gateway HTTP API', function () {
     const device = devices[0]
     expect(device.mac).to.equal(MAC)
     expect(device.name).to.equal('RuuviTag')
+    expect(device.vendor).to.equal('Ruuvi Innovations Ltd.')
     expect(device.addressType).to.equal('random')
     expect(device.rssi).to.equal(-61)
     expect(device.connectable).to.equal(true)
@@ -80,5 +81,27 @@ describe('BLE gateway HTTP API', function () {
       devices: [{ mac: MAC, rssi: -60, address_type: 'static' }]
     })
     expect(res.status).to.equal(400)
+  })
+
+  it('reports the vendor without using it as the name', async () => {
+    const nameless = 'AA:BB:CC:DD:EE:01'
+    const postRes = await post('/ble/gateway/advertisements', {
+      gateway_id: 'test-gw',
+      devices: [
+        {
+          mac: nameless,
+          rssi: -70,
+          // Victron Energy (company ID 0x02E1), no name in either part
+          adv_data: ad(0xff, 'e102' + '1000a5a302'),
+          connectable: true
+        }
+      ]
+    })
+    expect(postRes.status).to.equal(200)
+
+    const devices = await get('/vessels/self/ble/devices').then((r) => r.json())
+    const device = devices.find((d: { mac: string }) => d.mac === nameless)
+    expect(device.vendor).to.equal('Victron Energy BV')
+    expect(device).to.not.have.property('name')
   })
 })

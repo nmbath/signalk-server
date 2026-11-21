@@ -21,6 +21,7 @@ const OptionalNullable = <T extends TSchema>(schema: T) =>
 export const BleDeviceSchema = Type.Object({
   mac: Type.String(),
   name: Type.Optional(Type.String()),
+  vendor: Type.Optional(Type.String()),
   rssi: Type.Number(),
   lastSeen: Type.Number(),
   connectable: Type.Boolean(),

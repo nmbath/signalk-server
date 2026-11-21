@@ -433,13 +433,16 @@ export class BLEApi implements IBLEApi {
       })
     }
 
-    // Prefer advertised name; fall back to Bluetooth SIG company ID lookup
+    // name is only ever the advertised name; the manufacturer from the
+    // Bluetooth SIG company ID is reported separately as vendor, so a device
+    // that advertises no name is not shown under its vendor's name
     if (adv.name) {
       device.name = adv.name
-    } else if (!device.name) {
+    }
+    if (!device.vendor) {
       const companyId = Object.keys(adv.manufacturerData ?? {})[0]
       if (companyId !== undefined) {
-        device.name = bleVendorName(parseInt(companyId)) ?? undefined
+        device.vendor = bleVendorName(parseInt(companyId)) ?? undefined
       }
     }
     if (adv.connectable) device.connectable = true
